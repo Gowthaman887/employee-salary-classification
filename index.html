@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employee Salary Classification — Logistic Regression</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      padding: 2rem 2.5rem;
+      border-bottom: 1px solid #1e40af44;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; color: #60a5fa; }
+    header p  { color: #94a3b8; margin-top: .4rem; font-size: .95rem; }
+
+    main { max-width: 1300px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .section-title {
+      font-size: 1.1rem; font-weight: 600;
+      color: #93c5fd; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .section-title::before {
+      content: ''; display: block;
+      width: 4px; height: 1.1rem;
+      background: #3b82f6; border-radius: 2px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      transition: transform .2s;
+    }
+    .card:hover { transform: translateY(-3px); }
+    .card .value { font-size: 1.7rem; font-weight: 700; color: #60a5fa; line-height: 1.1; }
+    .card .label { font-size: .75rem; color: #94a3b8; margin-top: .4rem; text-transform: uppercase; letter-spacing: .05em; }
+    .card.green  .value { color: #4ade80; }
+    .card.yellow .value { color: #facc15; }
+    .card.red    .value { color: #f87171; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem; margin-bottom: 2rem;
+    }
+    .chart-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .chart-box canvas { max-height: 280px; }
+
+    .cm-wrap {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+    .cm-table { border-collapse: collapse; margin: 0 auto; font-size: .9rem; }
+    .cm-table th, .cm-table td { padding: .7rem 1.4rem; text-align: center; border: 1px solid #334155; }
+    .cm-table th  { background: #0f172a; color: #93c5fd; }
+    .cm-table td  { background: #0f172a; }
+    .cm-table td.diag { background: #1d4ed8; color: #fff; font-weight: 700; }
+    .cm-table td.off  { background: #1e293b; color: #94a3b8; }
+
+    .metrics-wrap {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+    .metrics-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .metrics-table th {
+      background: #0f172a; color: #93c5fd;
+      padding: .7rem 1rem; text-align: left;
+      border-bottom: 1px solid #334155;
+    }
+    .metrics-table td { padding: .65rem 1rem; border-bottom: 1px solid #1e293b; }
+    .metrics-table tr:hover td { background: #0f172a; }
+
+    .badge { display: inline-block; padding: .2rem .65rem; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+    .badge-low    { background: #1d4ed822; color: #60a5fa; border: 1px solid #1d4ed8; }
+    .badge-medium { background: #d9770622; color: #fb923c; border: 1px solid #d97706; }
+    .badge-high   { background: #15803d22; color: #4ade80; border: 1px solid #15803d; }
+
+    .table-wrap {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    .data-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .data-table th {
+      background: #0f172a; color: #93c5fd;
+      padding: .65rem 1rem; text-align: left;
+      border-bottom: 1px solid #334155; white-space: nowrap;
+    }
+    .data-table td { padding: .6rem 1rem; border-bottom: 1px solid #1e293b; }
+    .data-table tr:hover td { background: #0f172a; }
+    .match    { color: #4ade80; font-weight: 700; }
+    .mismatch { color: #f87171; font-weight: 700; }
+
+    footer {
+      text-align: center; padding: 1.5rem;
+      color: #475569; font-size: .8rem;
+      border-top: 1px solid #1e293b; margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🤖 Employee Salary Classification</h1>
+  <p>Logistic Regression &nbsp;·&nbsp; Python &nbsp;·&nbsp; scikit-learn &nbsp;·&nbsp; Polynomial Features &nbsp;|&nbsp; Classes: <strong>Low</strong> / <strong>Medium</strong> / <strong>High</strong></p>
+</header>
+
+<main>
+
+  <div class="section-title">Model Overview</div>
+  <div class="cards" id="cards"></div>
+
+  <div class="section-title">Visualisations</div>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <div class="section-title" style="font-size:.9rem">Actual Class Distribution</div>
+      <canvas id="pieActual"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="section-title" style="font-size:.9rem">Predicted Class Distribution</div>
+      <canvas id="piePred"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="section-title" style="font-size:.9rem">Precision / Recall / F1 per Class</div>
+      <canvas id="barMetrics"></canvas>
+    </div>
+  </div>
+
+  <div class="section-title">Confusion Matrix</div>
+  <div class="cm-wrap" id="cmWrap"></div>
+
+  <div class="section-title">Per-Class Metrics</div>
+  <div class="metrics-wrap">
+    <table class="metrics-table">
+      <thead>
+        <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1-Score</th><th>Support</th></tr>
+      </thead>
+      <tbody id="metricsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Dataset Predictions</div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Experience (yrs)</th><th>Age</th><th>Gender</th>
+          <th>Salary (₹)</th><th>Actual Class</th><th>Predicted Class</th><th>Match?</th>
+        </tr>
+      </thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer>Mini ML Project &nbsp;·&nbsp; Employee Salary Classification using Logistic Regression</footer>
+
+<script>
+// ── Embedded data (no fetch needed) ──────────────────────────────────────────
+const DATA = {"accuracy":44.44,"cv_accuracy":60.0,"cv_std":10.69,"class_counts":{"Low":15,"High":11,"Medium":9},"pred_counts":{"Low":16,"High":14,"Medium":5},"metrics_per_class":{"Low":{"precision":0.667,"recall":0.5,"f1":0.571,"support":4},"Medium":{"precision":0.0,"recall":0.0,"f1":0.0,"support":2},"High":{"precision":0.5,"recall":0.667,"f1":0.571,"support":3}},"confusion_matrix":{"labels":["Low","Medium","High"],"matrix":[[2,1,1],[1,0,1],[0,1,2]]},"table_rows":[{"id":1,"experience":5,"age":28,"gender":"Female","salary":250000,"actual":"Medium","predicted":"Medium"},{"id":2,"experience":1,"age":21,"gender":"Male","salary":50000,"actual":"Low","predicted":"Low"},{"id":3,"experience":3,"age":23,"gender":"Female","salary":170000,"actual":"Medium","predicted":"Low"},{"id":4,"experience":2,"age":22,"gender":"Male","salary":25000,"actual":"Low","predicted":"Low"},{"id":5,"experience":1,"age":17,"gender":"Male","salary":10000,"actual":"Low","predicted":"Low"},{"id":6,"experience":25,"age":62,"gender":"Male","salary":5001000,"actual":"High","predicted":"High"},{"id":7,"experience":19,"age":54,"gender":"Female","salary":800000,"actual":"Medium","predicted":"High"},{"id":8,"experience":2,"age":21,"gender":"Female","salary":9000,"actual":"Low","predicted":"Low"},{"id":9,"experience":10,"age":36,"gender":"Female","salary":61500,"actual":"Low","predicted":"Medium"},{"id":10,"experience":15,"age":54,"gender":"Female","salary":650000,"actual":"Medium","predicted":"Medium"},{"id":11,"experience":4,"age":26,"gender":"Female","salary":250000,"actual":"Medium","predicted":"Low"},{"id":12,"experience":6,"age":29,"gender":"Male","salary":1400000,"actual":"High","predicted":"High"},{"id":13,"experience":14,"age":39,"gender":"Male","salary":6000050,"actual":"High","predicted":"High"},{"id":14,"experience":11,"age":40,"gender":"Male","salary":220100,"actual":"Medium","predicted":"High"},{"id":15,"experience":2,"age":23,"gender":"Male","salary":7500,"actual":"Low","predicted":"Low"},{"id":16,"experience":4,"age":27,"gender":"Female","salary":87000,"actual":"Low","predicted":"Low"},{"id":17,"experience":10,"age":34,"gender":"Female","salary":930000,"actual":"Medium","predicted":"Medium"},{"id":18,"experience":15,"age":54,"gender":"Female","salary":7900000,"actual":"High","predicted":"Medium"},{"id":19,"experience":2,"age":21,"gender":"Male","salary":15000,"actual":"Low","predicted":"Low"},{"id":20,"experience":10,"age":36,"gender":"Male","salary":330000,"actual":"Medium","predicted":"High"},{"id":21,"experience":15,"age":54,"gender":"Male","salary":6570000,"actual":"High","predicted":"High"},{"id":22,"experience":4,"age":26,"gender":"Male","salary":25000,"actual":"Low","predicted":"Low"},{"id":23,"experience":5,"age":29,"gender":"Male","salary":6845000,"actual":"High","predicted":"Low"},{"id":24,"experience":1,"age":21,"gender":"Female","salary":6000,"actual":"Low","predicted":"Low"},{"id":25,"experience":4,"age":23,"gender":"Female","salary":8900,"actual":"Low","predicted":"Low"},{"id":26,"experience":3,"age":22,"gender":"Female","salary":20000,"actual":"Low","predicted":"Low"},{"id":27,"experience":1,"age":18,"gender":"Male","salary":3000,"actual":"Low","predicted":"Low"},{"id":28,"experience":27,"age":62,"gender":"Female","salary":10000000,"actual":"High","predicted":"High"},{"id":29,"experience":19,"age":54,"gender":"Female","salary":5000000,"actual":"High","predicted":"High"},{"id":30,"experience":2,"age":21,"gender":"Female","salary":6100,"actual":"Low","predicted":"Low"},{"id":31,"experience":10,"age":34,"gender":"Male","salary":80000,"actual":"Low","predicted":"High"},{"id":32,"experience":15,"age":54,"gender":"Male","salary":900000,"actual":"Medium","predicted":"High"},{"id":33,"experience":20,"age":55,"gender":"Female","salary":1540000,"actual":"High","predicted":"High"},{"id":34,"experience":19,"age":53,"gender":"Female","salary":9300000,"actual":"High","predicted":"High"},{"id":35,"experience":16,"age":49,"gender":"Male","salary":7600000,"actual":"High","predicted":"High"}],"train_size":26,"test_size":9};
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const COLORS = {
+  Low:    { bg: 'rgba(96,165,250,.75)',  border: '#60a5fa' },
+  Medium: { bg: 'rgba(251,146,60,.75)', border: '#fb923c' },
+  High:   { bg: 'rgba(74,222,128,.75)', border: '#4ade80' },
+};
+const CLASSES = ["Low", "Medium", "High"];
+
+// ── Render all ────────────────────────────────────────────────────────────────
+renderCards(DATA);
+renderPie("pieActual", DATA.class_counts);
+renderPie("piePred",   DATA.pred_counts);
+renderBarMetrics(DATA.metrics_per_class);
+renderCM(DATA.confusion_matrix);
+renderMetricsTable(DATA.metrics_per_class);
+renderDataTable(DATA.table_rows);
+
+// ── Stat cards ────────────────────────────────────────────────────────────────
+function renderCards(d) {
+  const cards = [
+    { label: "Test Accuracy",  value: d.accuracy + "%",                          cls: "green"  },
+    { label: "CV Accuracy",    value: d.cv_accuracy + "% ±" + d.cv_std + "%",    cls: "green"  },
+    { label: "Total Samples",  value: d.table_rows.length,                        cls: ""       },
+    { label: "Train Samples",  value: d.train_size,                               cls: ""       },
+    { label: "Test Samples",   value: d.test_size,                                cls: ""       },
+    { label: "Low Salary",     value: d.class_counts.Low    || 0,                 cls: ""       },
+    { label: "Medium Salary",  value: d.class_counts.Medium || 0,                 cls: "yellow" },
+    { label: "High Salary",    value: d.class_counts.High   || 0,                 cls: "green"  },
+  ];
+  document.getElementById("cards").innerHTML = cards.map(c =>
+    `<div class="card ${c.cls}">
+       <div class="value">${c.value}</div>
+       <div class="label">${c.label}</div>
+     </div>`
+  ).join("");
+}
+
+// ── Doughnut chart ────────────────────────────────────────────────────────────
+function renderPie(id, counts) {
+  const labels = CLASSES.filter(c => counts[c] !== undefined);
+  new Chart(document.getElementById(id), {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data:            labels.map(c => counts[c]),
+        backgroundColor: labels.map(c => COLORS[c].bg),
+        borderColor:     labels.map(c => COLORS[c].border),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+      }
+    }
+  });
+}
+
+// ── Bar chart ─────────────────────────────────────────────────────────────────
+function renderBarMetrics(metrics) {
+  const labels    = CLASSES.filter(c => metrics[c]);
+  const precision = labels.map(c => metrics[c].precision);
+  const recall    = labels.map(c => metrics[c].recall);
+  const f1        = labels.map(c => metrics[c].f1);
+
+  new Chart(document.getElementById("barMetrics"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label: "Precision", data: precision, backgroundColor: "rgba(96,165,250,.75)",  borderColor: "#60a5fa", borderWidth: 1 },
+        { label: "Recall",    data: recall,    backgroundColor: "rgba(251,146,60,.75)", borderColor: "#fb923c", borderWidth: 1 },
+        { label: "F1-Score",  data: f1,        backgroundColor: "rgba(74,222,128,.75)", borderColor: "#4ade80", borderWidth: 1 },
+      ]
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } },
+        y: { min: 0, max: 1, ticks: { color: "#94a3b8" }, grid: { color: "#334155" } }
+      },
+      plugins: { legend: { labels: { color: "#e2e8f0" } } }
+    }
+  });
+}
+
+// ── Confusion matrix ──────────────────────────────────────────────────────────
+function renderCM(cm) {
+  const { labels, matrix } = cm;
+  let html = `<table class="cm-table">
+    <thead><tr><th>Actual \\ Predicted</th>${labels.map(l => `<th>${l}</th>`).join("")}</tr></thead>
+    <tbody>`;
+  matrix.forEach((row, i) => {
+    html += `<tr><th>${labels[i]}</th>`;
+    row.forEach((val, j) => {
+      html += `<td class="${i === j ? "diag" : "off"}">${val}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById("cmWrap").innerHTML = html;
+}
+
+// ── Per-class metrics table ───────────────────────────────────────────────────
+function renderMetricsTable(metrics) {
+  const badgeMap = { Low: "badge-low", Medium: "badge-medium", High: "badge-high" };
+  document.getElementById("metricsBody").innerHTML = CLASSES
+    .filter(c => metrics[c])
+    .map(c => {
+      const m = metrics[c];
+      return `<tr>
+        <td><span class="badge ${badgeMap[c]}">${c}</span></td>
+        <td>${(m.precision * 100).toFixed(1)}%</td>
+        <td>${(m.recall    * 100).toFixed(1)}%</td>
+        <td>${(m.f1        * 100).toFixed(1)}%</td>
+        <td>${m.support}</td>
+      </tr>`;
+    }).join("");
+}
+
+// ── Data table ────────────────────────────────────────────────────────────────
+function renderDataTable(rows) {
+  const badgeMap = { Low: "badge-low", Medium: "badge-medium", High: "badge-high" };
+  document.getElementById("dataBody").innerHTML = rows.map(r => {
+    const match = r.actual === r.predicted;
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${r.experience}</td>
+      <td>${r.age}</td>
+      <td>${r.gender}</td>
+      <td>₹${r.salary.toLocaleString("en-IN")}</td>
+      <td><span class="badge ${badgeMap[r.actual]}">${r.actual}</span></td>
+      <td><span class="badge ${badgeMap[r.predicted]}">${r.predicted}</span></td>
+      <td class="${match ? "match" : "mismatch"}">${match ? "✔" : "✘"}</td>
+    </tr>`;
+  }).join("");
+}
+</script>
+</body>
+</html>
